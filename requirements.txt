@@ -1,0 +1,9 @@
+#Pytorch installation
+transformers
+datasets
+peft
+sacrebleu
+evaluate
+pandas
+matplotlib
+pylint
