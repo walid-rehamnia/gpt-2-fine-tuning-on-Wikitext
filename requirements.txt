@@ -1,9 +1,14 @@
 #Pytorch installation
 transformers
-datasets
+datasets==3.0.1
 peft
 sacrebleu
-evaluate
 pandas
 matplotlib
-pylint
+psutil
+rouge==1.0.1
+pylint==3.3.1
+flake8==7.1.1
+mypy==1.11.2
+isort
+ruff

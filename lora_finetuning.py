@@ -1,29 +1,47 @@
+"""
+lora_finetuning.py
+
+This module contains the implementation of LoRA (Low-Rank Adapters)
+fine-tuning pipeline for a pre-trained GPT-2 model on the WikiText dataset.
+LoRA is a parameter-efficient fine-tuning methodthat freezes the pre-trained
+model weights and introduces small trainable weight matrices with a low-rank
+decomposition.
+
+Author: [r.walid]
+"""
+
+
 import torch
 from peft import LoraConfig, get_peft_model
 from transformers import Trainer, TrainingArguments
 
-from utils import load_dataset, get_tokenized_dataset, get_model
+from utils import (LossRecorderCallback, TimerMemoryTracker,
+                   TokenizerSingleton, evaluate_model, freeze_weights,
+                   get_model, get_tokenized_dataset, load_data, plot_losses)
 
 
-def lora_fine_tuning(batch_size: int, data_fraction: float, epochs: int, lora_rank: int):
-    """Fine tune the pretrained GPT-2 model on Wikitext dataset with LoRA technique
+def lora_fine_tuning(batch_size: int, data_fraction: float,
+                     epochs: int, lora_rank: int):
+    """Fine tune the pretrained GPT-2 model on
+      Wikitext dataset with LoRA technique
 
     Args:
         batch_size (int): Batch size for training phase (default: 4)
-        data_fraction (float): Portion or fraction of dataset to get(ranging from 0 to 1)
+        data_fraction (float): Portion or fraction of dataset to get
+                               (ranging from 0 to 1)
         epochs (int): Number of epochs for training (default: 2)
         lora_rank (int): Rank "r" for LoRA technique (default: 4)
     """
-    print(
-        f"Starting LoRA fine-tuning with : batch size={batch_size}, data_fraction={data_fraction}, 
-        epochs={epochs}, and lora_rank={lora_rank}")
-
-    # Load dataset and tokenizer
+    print(f'Starting LoRA fine-tuning with : batch size={batch_size}, \
+            data_fraction={data_fraction}, epochs={epochs},\
+            and lora_rank={lora_rank}')
 
     model = get_model()
+    # Additional step to ensure that all model params are well freezed
+    freeze_weights(model)
     # Define LoRA configuration
     lora_config = LoraConfig(
-        # Rank of the low-rank matrices, set very small due to ressources limitations
+        # Rank of the low-rank matrices
         r=lora_rank,
         lora_alpha=32,      # Alpha scaling factor
         # Target Conv1D layers used in attention and projection
@@ -38,34 +56,54 @@ def lora_fine_tuning(batch_size: int, data_fraction: float, epochs: int, lora_ra
     peft_model.print_trainable_parameters()
 
     training_args = TrainingArguments(
-        output_dir="./gpt2-lora-finetuned",
+        output_dir="results/gpt2-lora-finetuned",
         overwrite_output_dir=True,
         learning_rate=1e-4,  # Higher LR for LoRA
-        per_device_train_batch_size=batch_size,  # Larger batch size due to reduced memory usage
+        # Larger batch size due to reduced memory usage
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
         num_train_epochs=epochs,  # Fewer epochs as LoRA converges faster
-        gradient_accumulation_steps=2,  # Less accumulation needed
-        logging_dir="./logs/lora_finetune",
+        # gradient_accumulation_steps=2,  # Less accumulation needed
+        logging_dir="results/logs/lora_finetune",
         logging_steps=50,  # More frequent logging to track rapid convergence
+        eval_steps=50,
+        eval_strategy="steps",
         save_steps=500,
         fp16=torch.cuda.is_available(),
-        weight_decay=0.0  # Less regularization needed
+        weight_decay=0.0,  # Less regularization needed,
+
     )
 
-    dataset = load_dataset(fraction=data_fraction)
+    dataset = load_data(fraction=data_fraction)
     tokenized_dataset = get_tokenized_dataset(dataset=dataset)
-    
+
+    # Instantiate the callback
+    loss_recorder = LossRecorderCallback()
+
     # Initialize the Trainer
     trainer = Trainer(
         model=peft_model,
         args=training_args,
         train_dataset=tokenized_dataset["train"],
-        eval_dataset=tokenized_dataset["validation"]
+        eval_dataset=tokenized_dataset["validation"],
+        callbacks=[loss_recorder],
+        tokenizer=TokenizerSingleton().get_tokenizer(),
     )
 
     # Fine-tuning the model
-    print("Fine-tuning the model...")
-    trainer.train()
+    with TimerMemoryTracker() as tracker:
+        trainer.train()
+
+    tracker.report()
+    # print("#################Losses################")
+    # print(loss_recorder.train_losses)
+    # print(loss_recorder.eval_losses)
+    plot_losses(loss_recorder.train_losses, loss_recorder.eval_losses)
 
     # Save the model
     print("Save the model...")
-    trainer.save_model("model-gpt2-lora-finetuned")
+    trainer.save_model("results/models/gpt2-lora-finetuned")
+
+    # model evaluation
+    evaluate_model(model_path="results/models/gpt2-lora-finetuned",
+                   num_examples=435, file_path="results/lora_results.csv")

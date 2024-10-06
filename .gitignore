@@ -1,4 +1,7 @@
 # created by virtualenv automatically
 venv/
 old/
+results/models/
+results/gpt2-lora-finetuned/
+results/gpt2-full-finetuned/
 __pycache__/
