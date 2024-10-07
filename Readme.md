@@ -1,7 +1,7 @@
 # Fine-Tuning GPT-2 on WikiText with Full Tuning and LoRA: A Comparative Study
 
 ## Task objective
-The objective from this task is to fine tune the "GPT-2" LLM model on Wikitext dataset with simple fine tuning as well as with LoRA technique... (see more details on the attached PDF report)
+The objective of this task is to fine-tune the "GPT-2" large language model (LLM) on the WikiText dataset using two approaches: full fine-tuning and Low-Rank Adapters (LoRA). LoRA is a Parameter-Efficient Fine-Tuning (PEFT) method that applies additional trainable parameters to a frozen pre-trained model, resulting in a more efficient fine-tuning process with fewer trainable parameters. This study compares the performance of both techniques in terms of quality, time, and resource utilization.
 
 ## Dataset Specification
 
@@ -27,6 +27,22 @@ The objective from this task is to fine tune the "GPT-2" LLM model on Wikitext d
 | **TER score**                         | 91.66                | 93.06                |
 | **CHRF score**                        | 17.76                | 16.56                |
 | **METEOR score**                      | -                    | -                    |
+
+#### Discussion:
+
+From the comparison table and the training charts, several key points emerge:
+* Model Size: As expected, LoRA fine-tuning significantly reduces the model size, resulting in a 6.15 MB model compared to 479 MB for full fine-tuning. This reduction is due to the fact that LoRA only trains a small set of additional parameters, while the rest of the pre-trained weights remain frozen.
+* Training Time and Memory Usage: LoRA fine-tuning offers notable efficiency gains in both training time and memory usage. It completes the training in 2,851.43 seconds (compared to 3,694.07 seconds for full fine-tuning) and reduces GPU memory consumption by over 95%. This demonstrates the practicality of LoRA in resource-constrained environments, such as when training on consumer hardware with limited GPU memory.
+* Losses and Performance:
+   * Both models exhibit convergence, but the full fine-tuning achieves slightly better training loss (0.3004 vs. 0.3706). However, the validation loss difference between the two approaches is minimal, indicating comparable generalization ability.
+   * The BLEU and SacreBLEU scores are very close between both approaches with slight upper hand to the full tuning approach, indicating comparable quality of text generation. However, both models score quite low on these metrics, suggesting potential more hyper parameterization and finetuning.
+   * ROUGE, TER, and CHRF scores also reveal minimal differences between the two methods, indicating that LoRA fine-tuning is competitive in terms of quality.
+   * Due to time constraints, the METEOR score was not included, but the evaluation code is ready to be executed.
+* Limitations:
+   * Due to hardware limitations (Intel i7-8750H and NVIDIA GTX 1060), training was performed on only 10% of the original dataset. This likely impacted the models' performance and scores.
+   * Additional training epochs and hyperparameter optimization would likely improve both methods' performance.
+
+
 
 
 ## Reproducibility instrcutions:
@@ -82,7 +98,7 @@ The pipeline for both fine-tuning aproaches are "full_finetuning.py" and "lora_f
    ```
 
 
-5. Code style commands:
+### Code analysis commands:
    After both scripts finish running, a summary table with BLEU scores, training time, and memory usage will be printed.
 ```bash
 pylint main.py full_finetuning.py lora_finetuning.py utils.py
