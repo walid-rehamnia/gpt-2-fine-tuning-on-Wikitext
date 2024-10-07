@@ -26,7 +26,8 @@ import sacrebleu
 import torch
 from datasets import DatasetDict, load_dataset
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
+from transformers import (AutoModelForCausalLM, AutoTokenizer, Trainer,
+                          TrainerCallback)
 
 SEED = 2024
 
@@ -153,16 +154,21 @@ class TokenizerSingleton:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(TokenizerSingleton, cls).__new__(cls)
-            cls._instance.tokenizer = AutoTokenizer.from_pretrained("gpt2")
-            # Tokenizer padding
-            cls._instance.tokenizer.pad_token = \
-                cls._instance.tokenizer.eos_token
+            # Tokenizer initialization will be done later
         return cls._instance
 
+    def __init__(self):
+        if not hasattr(self, 'tokenizer'):  # Avoid re-initialization
+            self.tokenizer = self._initialize_tokenizer()
+
+    def _initialize_tokenizer(self):
+        """Load the tokenizer from Hugging Face."""
+        tokenizer = AutoTokenizer.from_pretrained("gpt2")
+        tokenizer.pad_token = tokenizer.eos_token  # Set pad token to EOS token
+        return tokenizer
+
     def get_tokenizer(self):
-        """
-        Returns the singleton GPT-2 tokenizer instance.
-        """
+        """Return the loaded tokenizer."""
         return self.tokenizer
 
 
@@ -350,7 +356,6 @@ def generate_model_hypothesis_references(model_path, examples):
     """
     # Step 1: Load the fine-tuned model and tokenizer
     model = AutoModelForCausalLM.from_pretrained(model_path, device_map='auto')
-    # tokenizer = TokenizerSingleton().get_tokenizer()
     tokenizer = TokenizerSingleton().get_tokenizer()
     # Step 3: Generate hypothesis texts
     hypotheses = []
@@ -382,6 +387,46 @@ def generate_model_hypothesis_references(model_path, examples):
             references.append([second_part_txt])
 
     return hypotheses, references
+
+
+def initialize_trainer_and_dataset(model, training_args, data_fraction):
+    """
+    Initializes the Trainer for model fine-tuning and loads the dataset.
+
+    This function loads the WikiText dataset, tokenizes it, and sets up
+    the Trainer with the provided training arguments. It also initializes
+    a loss recorder to keep track of training and evaluation losses.
+
+    Args:
+        model: The model to be fine tuned.
+        training_args (TrainingArguments): The training arguments
+        for the Trainer.
+        batch_size (int): The batch size for training and evaluation.
+        epochs (int): The number of epochs for training.
+        data_fraction (float): The fraction of the dataset
+        to use for training (0 < data_fraction <= 1).
+
+    Returns:
+        tuple: A tuple containing:
+            - Trainer: The initialized Trainer instance.
+            - LossRecorderCallback: The loss recorder for tracking training
+              and evaluation losses.
+    """
+    dataset = load_data(fraction=data_fraction)
+    tokenized_dataset = get_tokenized_dataset(dataset=dataset)
+
+    loss_recorder = LossRecorderCallback()
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_dataset["train"],
+        eval_dataset=tokenized_dataset["validation"],
+        callbacks=[loss_recorder],
+        tokenizer=TokenizerSingleton().get_tokenizer(),
+    )
+
+    return trainer, loss_recorder
 
 
 def evaluate_model(model_path, num_examples, file_path):

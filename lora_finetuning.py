@@ -13,11 +13,10 @@ Author: [r.walid]
 
 import torch
 from peft import LoraConfig, get_peft_model
-from transformers import Trainer, TrainingArguments
+from transformers import TrainingArguments
 
-from utils import (LossRecorderCallback, TimerMemoryTracker,
-                   TokenizerSingleton, evaluate_model, freeze_weights,
-                   get_model, get_tokenized_dataset, load_data, plot_losses)
+from utils import (TimerMemoryTracker, evaluate_model, freeze_weights,
+                   get_model, initialize_trainer_and_dataset, plot_losses)
 
 
 def lora_fine_tuning(batch_size: int, data_fraction: float,
@@ -74,34 +73,18 @@ def lora_fine_tuning(batch_size: int, data_fraction: float,
 
     )
 
-    dataset = load_data(fraction=data_fraction)
-    tokenized_dataset = get_tokenized_dataset(dataset=dataset)
-
-    # Instantiate the callback
-    loss_recorder = LossRecorderCallback()
-
-    # Initialize the Trainer
-    trainer = Trainer(
-        model=peft_model,
-        args=training_args,
-        train_dataset=tokenized_dataset["train"],
-        eval_dataset=tokenized_dataset["validation"],
-        callbacks=[loss_recorder],
-        tokenizer=TokenizerSingleton().get_tokenizer(),
-    )
+    trainer, loss_recorder = initialize_trainer_and_dataset(
+        peft_model, training_args, data_fraction)
 
     # Fine-tuning the model
     with TimerMemoryTracker() as tracker:
         trainer.train()
 
     tracker.report()
-    # print("#################Losses################")
-    # print(loss_recorder.train_losses)
-    # print(loss_recorder.eval_losses)
+
     plot_losses(loss_recorder.train_losses, loss_recorder.eval_losses)
 
-    # Save the model
-    print("Save the model...")
+    # Saving the lora-tuned model the model
     trainer.save_model("results/models/gpt2-lora-finetuned")
 
     # model evaluation
