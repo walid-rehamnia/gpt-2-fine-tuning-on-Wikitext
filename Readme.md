@@ -28,7 +28,14 @@ The objective of this task is to fine-tune the "GPT-2" large language model (LLM
 | **CHRF score**                        | 17.76                | 16.56                |
 | **METEOR score**                      | -                    | -                    |
 
-#### Discussion:
+## Losses during training
+The following charts describe the loss dynamics over the training epochs for both pipelines:
+      
+Full fine- tuning             |  LoRA fine-tuning
+:-------------------------:|:-------------------------:
+![ ](full_last-1.png)      |  ![alt text](lora_last.png)
+
+## Discussion:
 
 From the comparison table and the training charts, several key points emerge:
 * Model Size: As expected, LoRA fine-tuning significantly reduces the model size, resulting in a 6.15 MB model compared to 479 MB for full fine-tuning. This reduction is due to the fact that LoRA only trains a small set of additional parameters, while the rest of the pre-trained weights remain frozen.
@@ -43,6 +50,12 @@ From the comparison table and the training charts, several key points emerge:
    * Additional training epochs and hyperparameter optimization would likely improve both methods' performance.
 
 
+## Conclusion
+In conclusion, LoRA fine-tuning proves to be a highly efficient alternative to full fine-tuning
+in terms of both memory and time, while achieving almost comparable performance in
+different metrics to the full tuning approach. This makes it a suitable option for environments where computational resources
+are limited. Further exploration with full dataset, hyper parameterization, and additional evaluation metrics (e.g., METEOR) would provide deeper insights into the comparative performance of both
+techniques.
 
 
 ## Reproducibility instrcutions:
