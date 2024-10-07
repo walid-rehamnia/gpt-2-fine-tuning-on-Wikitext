@@ -33,7 +33,7 @@ The following charts describe the loss dynamics over the training epochs for bot
       
 Full fine- tuning             |  LoRA fine-tuning
 :-------------------------:|:-------------------------:
-![ ](full_last-1.png)      |  ![alt text](lora_last.png)
+![ ](full_last.png)      |  ![alt text](lora_last.png)
 
 ## Discussion:
 
