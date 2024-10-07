@@ -14,18 +14,18 @@ Functions:
     ...
 Author: [r.walid]
 """
-
+import os
 import time
+
+import evaluate
 import matplotlib.pyplot as plt
 import pandas as pd
 import psutil
 # import pymeteor.pymeteor as pymeteor
 import sacrebleu
 import torch
-import os
 from datasets import DatasetDict, load_dataset
 from tqdm import tqdm
-import evaluate
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
 
 SEED = 2024
@@ -35,9 +35,10 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class TimerMemoryTracker:
     """
-    Context manager class to track the time and memory consumption (both GPU and CPU)
-    during model training or inference processes.
-    It measures the elapsed time and the memory used on both CPU and GPU, if available.
+    Context manager class to track the time and memory consumption
+    (both GPU and CPU) during model training or inference processes.
+    It measures the elapsed time and the memory used on both CPU and GPU,
+    if available.
 
     Methods:
         __enter__(): Starts the timer and memory tracking.
@@ -50,6 +51,8 @@ class TimerMemoryTracker:
         self.end_time = None
         self.start_gpu_memory = None
         self.end_gpu_memory = None
+        self.start_cpu_memory = None
+        self.end_cpu_memory = None
 
     def __enter__(self):
         # Start timing and memory tracking
@@ -98,7 +101,8 @@ class LossRecorderCallback(TrainerCallback):
     the model's training and evaluation process.
 
     Methods:
-        on_log(): Appends the loss values from the logs into the appropriate lists.
+        on_log(): Appends the loss values from the logs into the
+        appropriate lists.
     """
 
     def __init__(self):
@@ -118,7 +122,8 @@ class LossRecorderCallback(TrainerCallback):
 
 def plot_losses(train_losses, eval_losses):
     """
-    Plots the training and validation loss over epochs for visualization purposes.
+    Plots the training and validation loss over epochs
+    for visualization purposes.
 
     Args:
         train_losses (list): List of training loss values.
@@ -197,8 +202,10 @@ def load_data(fraction=1):
 
     # If a valid fraction is passed, return a fraction of the data
     if 0 < fraction < 1:
-        def get_fraction(key): return dataset[key].shuffle(
-            seed=SEED).select(range(int(fraction * len(dataset[key]))))
+        def get_fraction(key):
+            return dataset[key].shuffle(
+                seed=SEED).select(range(int(fraction * len(dataset[key])))
+                                  )
 
         dataset = DatasetDict({
             'test':  get_fraction("test"),
@@ -293,13 +300,14 @@ def print_trainable_parameters(model):
 def generate_text(model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
                   prompt: str, min_length: int, max_length: int):
     """
-    Generates text based on a given prompt using a specified model and tokenizer.
+    Generates text based on a given prompt using a specified
+    model and tokenizer.
 
     Args:
-        model (AutoModelForCausalLM): The pre-trained language model (e.g., GPT-2)
-        for generating text.
-        tokenizer (AutoTokenizer): The tokenizer corresponding to the model
-        for encoding the input prompt.
+        model (AutoModelForCausalLM): The pre-trained language model
+        (e.g., GPT-2) for generating text.
+        tokenizer (AutoTokenizer): The tokenizer corresponding
+        to the model for encoding the input prompt.
         prompt (str): The initial text prompt to guide text generation.
         min_length (int): Minimum number of tokens to generate.
         max_length (int): Maximum number of tokens to generate.
@@ -334,10 +342,11 @@ def generate_model_hypothesis_references(model_path, examples):
         used to generate the hypothesis and reference.
 
     Returns:
-        tuple: 
-            - hypotheses (list of str): The generated hypotheses (model predictions).
-            - references (list of list of str): The true references corresponding
-            to the second part of the examples.
+        tuple:
+            - hypotheses (list of str): The generated hypotheses
+              (model predictions).
+            - references (list of list of str): The true references
+              corresponding to the second part of the examples.
     """
     # Step 1: Load the fine-tuned model and tokenizer
     model = AutoModelForCausalLM.from_pretrained(model_path, device_map='auto')
@@ -383,8 +392,8 @@ def evaluate_model(model_path, num_examples, file_path):
     Args:
         model_path (str): The path to the model being evaluated.
         num_examples (int): Number of examples to load for evaluation.
-        file_path (str): The path where evaluation results (hypotheses, references)
-        will be saved as a CSV file.
+        file_path (str): The path where evaluation
+        results (hypotheses, references) will be saved as a CSV file.
 
     Returns:
         None
@@ -392,7 +401,6 @@ def evaluate_model(model_path, num_examples, file_path):
     # Check if the file exists
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"The file at {file_path} was not found.")
-    
     # Step 1: Load the test data
     examples = load_test_data(num_examples=num_examples)
 
@@ -456,12 +464,13 @@ def evaluate_across_models(full_model_path, lora_model_path, num_examples):
 
 def calculate_metrics(file_path) -> None:
     """
-    Calculates the different metrics (bleu, sacrebleu, rouge, ter_score, 
+    Calculates the different metrics (bleu, sacrebleu, rouge, ter_score,
     chrf_score, and meteor)from the generated hypotheses and references
     saved in a CSV file.
 
     Args:
-        file_path (str): The path to the CSV file containing hypotheses and references.
+        file_path (str): The path to the CSV file containing
+        hypotheses and references.
 
     Returns:
         None
@@ -469,7 +478,6 @@ def calculate_metrics(file_path) -> None:
     # Check if the file exists
     if not os.path.isfile(file_path):
         raise FileNotFoundError(f"The file at {file_path} was not found.")
-    
     df = pd.read_csv(file_path)
     # Remove rows with any null values
     df = df.dropna()
@@ -498,8 +506,8 @@ def calculate_metrics(file_path) -> None:
     chrf_score = 0
     # meteor_score = 0
     length = len(references)
-    for hypothesis, reference in tqdm(zip(hypotheses[85:], references[85:]),
-                                      desc="Calculating score", unit="example"):
+    for hypothesis, reference in tqdm(zip(hypotheses, references),
+                                      desc="Get scores...", unit="example"):
         ter_score += sacrebleu.sentence_ter(hypothesis, reference).score
         chrf_score += sacrebleu.sentence_chrf(hypothesis, reference).score
         # meteor_score += pymeteor.meteor(hypothesis, reference[0])

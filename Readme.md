@@ -97,23 +97,6 @@ The pipeline for both fine-tuning aproaches are "full_finetuning.py" and "lora_f
    python main.py lora --batch_size 8 --data_fraction 1 --epochs 3 --lora_rank 8
    ```
 
-
-### Code analysis commands:
-   After both scripts finish running, a summary table with BLEU scores, training time, and memory usage will be printed.
-```bash
-pylint main.py full_finetuning.py lora_finetuning.py utils.py
-```
-```bash
-flake8 main.py full_finetuning.py lora_finetuning.py utils.py
-```
-```bash
-isort main.py full_finetuning.py lora_finetuning.py utils.py
-```
-```bash
-ruff check . --fix
-```
-
-
 ```diff
 - Please read the attached PDF report for more details
 ```
